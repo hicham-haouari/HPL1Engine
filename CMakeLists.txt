@@ -4,11 +4,32 @@ project (HPL)
 set(HPL_VERSION_MAJOR 1)
 set(HPL_VERSION_MINOR 0)
 
+IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "i[3-6]86")
+	SET(i386 1)
+	SET(LIB_SUFFIX "" CACHE STRING "Choose the suffix of the lib folder (if any) : None 32")
+ELSEIF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64|amd64")
+	SET(x86_64 1)
+	SET(LIB_SUFFIX "" CACHE STRING "Choose the suffix of the lib folder (if any) : None 64")
+ELSE()
+	MESSAGE(SEND_ERROR "Platform ${CMAKE_SYSTEM_PROCESSOR} not supported")
+ENDIF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "i[3-6]86")
+
+SET(LIBDIR "lib${LIB_SUFFIX}")
+
+IF(ENABLE_SYSTEM_OALWRAPPER)
+include_directories(
+	${CMAKE_CURRENT_SOURCE_DIR}/include
+	${CMAKE_CURRENT_SOURCE_DIR}/include/impl
+	/usr/include/OALWrapper
+)
+ELSE()
 include_directories(
 	${CMAKE_CURRENT_SOURCE_DIR}/include
 	${CMAKE_CURRENT_SOURCE_DIR}/../OALWrapper/include
 	${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/include
 )
+ENDIF(ENABLE_SYSTEM_OALWRAPPER)
+
 file(GLOB_RECURSE all_sources
     ${CMAKE_CURRENT_SOURCE_DIR}/sources/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/sources/*.c
@@ -22,13 +43,48 @@ list(REMOVE_ITEM all_sources
     ${to_remove_all})
 list(REMOVE_DUPLICATES all_sources)
 
+IF(ENABLE_SHARED)
+add_library(HPL SHARED ${all_sources})
+SET_TARGET_PROPERTIES(HPL PROPERTIES VERSION "${HPL_VERSION_MAJOR}.${HPL_VERSION_MINOR}")
+SET_TARGET_PROPERTIES(HPL PROPERTIES SOVERSION "${HPL_VERSION_MAJOR}")
+ELSE()
 add_library(HPL STATIC ${all_sources})
+ENDIF(ENABLE_SHARED)
 
+IF(ENABLE_SYSTEM_NEWTON)
+TARGET_LINK_LIBRARIES(HPL Newton)
+ELSE()
 add_library(Newton STATIC IMPORTED)
 set_target_properties(Newton PROPERTIES IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/lib/linux/libNewton.a)
+ENDIF(ENABLE_SYSTEM_NEWTON)
 
+IF(ENABLE_SYSTEM_ANGELSCRIPT)
+TARGET_LINK_LIBRARIES(HPL angelscript)
+ELSE()
 add_library(angelscript STATIC IMPORTED)
 set_target_properties(angelscript PROPERTIES IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/lib/linux/libangelscript.a)
+ENDIF(ENABLE_SYSTEM_ANGELSCRIPT)
 
+IF(ENABLE_SYSTEM_SDL)
+TARGET_LINK_LIBRARIES(HPL SDL)
+ELSE()
 add_library(SDLmain STATIC IMPORTED)
 set_target_properties(SDLmain PROPERTIES IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/lib/linux/libSDLmain.a)
+ENDIF(ENABLE_SYSTEM_SDL)
+
+IF(ENABLE_SYSTEM_GLEE)
+TARGET_LINK_LIBRARIES(HPL GLee)
+ELSE()
+add_library(GLee STATIC IMPORTED)
+set_target_properties(SDLmain PROPERTIES IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/lib/linux/libGLee.a)
+ENDIF(ENABLE_SYSTEM_GLEE)
+
+IF(ENABLE_SYSTEM_TINYXML)
+TARGET_LINK_LIBRARIES(HPL tinyxml)
+ELSE()
+add_library(tinyxml STATIC IMPORTED)
+set_target_properties(tinyxml PROPERTIES IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/lib/linux/libtinyxml.a)
+ENDIF(ENABLE_SYSTEM_TINYXML)
+
+INSTALL(TARGETS HPL LIBRARY DESTINATION ${LIBDIR})
+INSTALL(DIRECTORY include/ DESTINATION include/HPL1)
